@@ -14,6 +14,37 @@ app.use((req, res, next) => {
     next();
 });
 
+const replaceHeaders = inputHeaders => {
+    const headersList = Object.keys(inputHeaders)
+    .filter(header => header.substr(0, 4) === 'fwd-')
+    .map(header => ({ name: header.substr(4, header.length - 4), value: inputHeaders[header] }) );
+
+    const headers = {};
+
+    for (header of headersList) {
+        headers[header.name] = header.value;
+    }
+
+    return headers;
+}
+
+const sendRequest = async request => {
+
+    const success = false;
+    try {
+        await axios(request);
+        success = true;
+    } catch (error) {
+        if (!error.message.includes('ETIMEDOUT')) {
+            throw error;
+        }
+    }
+    return success;
+
+}
+
+const TIMEOUT_LIMIT = 100;
+
 app.all('/forward', async (req, res, next) => {
     const initialTime = new Date();
     const fromTo = `From: ${req.ip} - To: ${req.headers.to}`;
@@ -25,24 +56,29 @@ app.all('/forward', async (req, res, next) => {
         next();
         return;
     }
-    
-    const headersList = Object.keys(req.headers)
-        .filter(header => header.substr(0, 4) === 'fwd-')
-        .map(header => ({ name: header.substr(4, header.length - 4), value: req.headers[header] }) );
 
-    const headers = {};
-    
-    for (header of headersList) {
-        headers[header.name] = header.value;
-    }
+    const headers = replaceHeaders(req.headers);
+    let timeoutCount = 0;
 
     try {
-        await axios({
+        
+        const request = {
             method: req.method,
             url: req.headers.to,
             headers,
             data: req.body && JSON.parse(req.body),
-        });
+        };
+
+        while (true) {
+            console.log(`Sending request - ${fromTo}`);
+            timeoutCount++;
+            if (timeoutCount >= TIMEOUT_LIMIT) {
+                throw new Error('Timeout limit reached.');
+            }
+            if (await sendRequest(request)) {
+                break;
+            }
+        }
 
         console.log(`Response in ${new Date() - initialTime} ms - ${fromTo}`);
         res.status(200).send();
