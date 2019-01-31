@@ -36,7 +36,7 @@ const sendRequest = async request => {
         if (!error.message.includes('ETIMEDOUT')) {
             throw error;
         }
-        console.log(`Aborting due to a timeout - ${fromTo}`);
+        console.log(`Aborting due to a timeout`);
     }
     return false;
 }
