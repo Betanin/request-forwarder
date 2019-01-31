@@ -25,10 +25,16 @@ app.all('/forward', async (req, res, next) => {
         next();
         return;
     }
+    
+    const headersList = Object.keys(req.headers)
+        .filter(header => header.substr(0, 4) === 'fwd-')
+        .map(header => ({ name: header.substr(4, header.length - 4), value: req.headers[header] }) );
 
-    const headers = { ...req.headers };
-    delete headers.to;
-    delete headers.forwardtoken;
+    const headers = {};
+    
+    for (header of headersList) {
+        headers[header.name] = header.value;
+    }
 
     try {
         await axios({
