@@ -29,18 +29,16 @@ const replaceHeaders = inputHeaders => {
 }
 
 const sendRequest = async request => {
-
-    const success = false;
     try {
         await axios(request);
-        success = true;
+        return true;
     } catch (error) {
         if (!error.message.includes('ETIMEDOUT')) {
             throw error;
         }
+        console.log(`Aborting due to a timeout - ${fromTo}`);
     }
-    return success;
-
+    return false;
 }
 
 const TIMEOUT_LIMIT = 100;
